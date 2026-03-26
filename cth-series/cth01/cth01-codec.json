@@ -5664,6 +5664,21 @@
             "reference": []
         },
         {
+            "id": "reverse_reactive_energy2.group1_value",
+            "name": "Exported Reactive Energy c(Exported Reactive Energy)",
+            "value": "0",
+            "unit": "kVArh",
+            "access_mode": "R",
+            "data_type": "NUMBER",
+            "value_type": "FLOAT",
+            "bacnet_type": "analog_input_object",
+            "bacnet_unit_type_id": 243,
+            "bacnet_unit_type": "UNITS_KILOVOLT_AMPERE_HOURS_REACTIVE",
+            "reference": [
+                "reverse_reactive_energy2.mask2"
+            ]
+        },
+        {
             "id": "reverse_reactive_energy2.group1.chan1",
             "name": "Exported Reactive Energy7(Exported Reactive Energy)",
             "value": "0",
