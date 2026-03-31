@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AT101 Codec Tester</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: #f1f5f9; color: #1e293b; min-height: 100vh; }
+
+  header { background: #0f172a; color: #fff; padding: 20px 24px; display: flex; align-items: center; gap: 12px; }
+  header h1 { font-size: 20px; font-weight: 700; }
+  header span { font-size: 13px; color: #94a3b8; }
+
+  .container { max-width: 900px; margin: 0 auto; padding: 24px 16px; }
+
+  .tabs { display: flex; gap: 4px; margin-bottom: 20px; background: #e2e8f0; padding: 4px; border-radius: 10px; }
+  .tab { flex: 1; padding: 10px; text-align: center; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; color: #64748b; border: none; background: none; transition: all .2s; }
+  .tab.active { background: #fff; color: #0f172a; box-shadow: 0 1px 4px #0002; }
+
+  .card { background: #fff; border-radius: 12px; box-shadow: 0 1px 4px #0001; overflow: hidden; margin-bottom: 20px; }
+  .card-header { padding: 14px 20px; border-bottom: 1px solid #f1f5f9; font-weight: 700; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+
+  .form-group { padding: 16px 20px; display: flex; flex-direction: column; gap: 8px; }
+  label { font-size: 13px; font-weight: 600; color: #475569; }
+  textarea, input[type=text] { width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 13px; color: #1e293b; resize: vertical; outline: none; transition: border .2s; }
+  textarea:focus, input[type=text]:focus { border-color: #6366f1; }
+  textarea { min-height: 90px; }
+
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 8px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; transition: all .15s; }
+  .btn-decode { background: #6366f1; color: #fff; }
+  .btn-decode:hover { background: #4f46e5; }
+  .btn-encode { background: #0ea5e9; color: #fff; }
+  .btn-encode:hover { background: #0284c7; }
+  .btn-clear { background: #f1f5f9; color: #64748b; }
+  .btn-clear:hover { background: #e2e8f0; }
+  .btn-row { display: flex; gap: 8px; padding: 0 20px 16px; }
+
+  .result-box { margin: 0 20px 16px; border-radius: 8px; padding: 14px 16px; font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.6; white-space: pre-wrap; word-break: break-all; }
+  .result-ok { background: #f0fdf4; border: 1.5px solid #86efac; color: #166534; }
+  .result-err { background: #fef2f2; border: 1.5px solid #fca5a5; color: #dc2626; }
+
+  .examples { padding: 0 20px 16px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .example-btn { padding: 5px 12px; border-radius: 99px; border: 1.5px solid #e2e8f0; background: #f8fafc; font-size: 12px; color: #475569; cursor: pointer; transition: all .15s; font-family: inherit; }
+  .example-btn:hover { border-color: #6366f1; color: #6366f1; background: #eef2ff; }
+
+  .section-label { font-size: 11px; font-weight: 700; color: #94a3b8; letter-spacing: 1px; text-transform: uppercase; padding: 0 20px 6px; }
+
+  /* JSON highlight */
+  .key   { color: #0369a1; }
+  .str   { color: #166534; }
+  .num   { color: #7c3aed; }
+  .bool  { color: #b45309; }
+  .null  { color: #9f1239; }
+
+  @media (max-width: 600px) {
+    .btn-row { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🔌 AT101 Codec Tester</h1>
+    <span>Milesight IoT — Payload Decoder &amp; Encoder</span>
+  </div>
+</header>
+
+<div class="container">
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('decode')">📥 Decode (HEX → JSON)</button>
+    <button class="tab" onclick="switchTab('encode')">📤 Encode (JSON → HEX)</button>
+  </div>
+
+  <!-- DECODE TAB -->
+  <div id="tab-decode">
+    <div class="card">
+      <div class="card-header">📥 Decode Uplink Payload</div>
+
+      <div class="section-label" style="padding-top:14px">ตัวอย่าง</div>
+      <div class="examples">
+        <button class="example-btn" onclick="setDecodeHex('017564036783011B01')">Battery + Temp</button>
+        <button class="example-btn" onclick="setDecodeHex('83671B0101')">Temp Alarm</button>
+        <button class="example-btn" onclick="setDecodeHex('070000')">Tamper</button>
+        <button class="example-btn" onclick="setDecodeHex('050000')">Position</button>
+        <button class="example-btn" onclick="setDecodeHex('FF8E001400')">Report Interval</button>
+        <button class="example-btn" onclick="setDecodeHex('FF174600')">Time Zone UTC+7</button>
+        <button class="example-btn" onclick="setDecodeHex('FF7101')">Positioning WiFi</button>
+        <button class="example-btn" onclick="setDecodeHex('FF6601')">Strategy Motion</button>
+        <button class="example-btn" onclick="setDecodeHex('FF8F01')">BT Enable</button>
+        <button class="example-btn" onclick="setDecodeHex('FF3B01')">Time Sync Enable</button>
+        <button class="example-btn" onclick="setDecodeHex('FF10FF')">Reboot ACK</button>
+        <button class="example-btn" onclick="setDecodeHex('04883FBF77013713E0062000000001')">Location</button>
+        <button class="example-btn" onclick="setDecodeHex('06D900FFFFFFFFFFFF00')">WiFi Timeout</button>
+        <button class="example-btn" onclick="setDecodeHex('FF01110F02FF8F000A')">Device Info</button>
+      </div>
+
+      <div class="form-group">
+        <label>HEX Bytes</label>
+        <input type="text" id="decode-input" placeholder="e.g. 017564 03678201" value="017564036783011B01" oninput="autoDecodeHex()" />
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-decode" onclick="runDecode()">▶ Decode</button>
+        <button class="btn btn-clear" onclick="clearDecode()">✕ Clear</button>
+      </div>
+      <div id="decode-result"></div>
+    </div>
+  </div>
+
+  <!-- ENCODE TAB -->
+  <div id="tab-encode" style="display:none">
+    <div class="card">
+      <div class="card-header">📤 Encode Downlink Payload</div>
+
+      <div class="section-label" style="padding-top:14px">ตัวอย่าง</div>
+      <div class="examples">
+        <button class="example-btn" onclick="setEncodeJson({reboot:'yes'})">Reboot</button>
+        <button class="example-btn" onclick="setEncodeJson({report_status:'yes'})">Report Status</button>
+        <button class="example-btn" onclick="setEncodeJson({time_zone:'UTC+7'})">Time Zone UTC+7</button>
+        <button class="example-btn" onclick="setEncodeJson({sync_time:'yes'})">Sync Time</button>
+        <button class="example-btn" onclick="setEncodeJson({report_interval:20})">Report Interval</button>
+        <button class="example-btn" onclick="setEncodeJson({motion_report_interval:10})">Motion Interval</button>
+        <button class="example-btn" onclick="setEncodeJson({report_strategy:'motion'})">Strategy: Motion</button>
+        <button class="example-btn" onclick="setEncodeJson({positioning_strategy:'wifi'})">Positioning: WiFi</button>
+        <button class="example-btn" onclick="setEncodeJson({gnss_positioning_timeout:3})">GNSS Timeout</button>
+        <button class="example-btn" onclick="setEncodeJson({wifi_positioning_config:{mode:'low_power',num_of_bssid:10,timeout:2}})">WiFi Config</button>
+        <button class="example-btn" onclick="setEncodeJson({motion_detection_config:{delta_g:1,duration:10}})">Motion Detection</button>
+        <button class="example-btn" onclick="setEncodeJson({tamper_detection_enable:'enable'})">Tamper Enable</button>
+        <button class="example-btn" onclick="setEncodeJson({bluetooth_enable:'enable'})">BT Enable</button>
+        <button class="example-btn" onclick="setEncodeJson({time_sync_enable:'enable'})">Time Sync</button>
+        <button class="example-btn" onclick="setEncodeJson({geofence_center_config:{latitude:13.7563,longitude:100.5018,radius:500}})">Geofence</button>
+        <button class="example-btn" onclick="setEncodeJson({geofence_alarm_config:{enable:'enable',interval:20,counts:1}})">Geofence Alarm</button>
+        <button class="example-btn" onclick="setEncodeJson({timed_report_config:[{index:1,time:60}]})">Timed Report</button>
+      </div>
+
+      <div class="form-group">
+        <label>JSON Payload</label>
+        <textarea id="encode-input" placeholder='e.g. {"reboot":"yes"}'></textarea>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-encode" onclick="runEncode()">▶ Encode</button>
+        <button class="btn btn-clear" onclick="clearEncode()">✕ Clear</button>
+      </div>
+      <div id="encode-result"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// CODEC
+// ══════════════════════════════════════════════════════════════
+var RAW_VALUE = 0x00;
+
+var YES_NO_MAP          = {0:"no",1:"yes"};
+var ENABLE_MAP          = {0:"disable",1:"enable"};
+var REPORT_STRATEGY_MAP = {0:"periodic",1:"motion",2:"timing"};
+var POSITIONING_MAP     = {0:"gnss",1:"wifi",2:"wifi_gnss"};
+var WIFI_SCAN_MODE_MAP  = {0:"low_power",1:"high_accuracy"};
+var LORAWAN_CLASS_MAP   = {0:"Class A",1:"Class B",2:"Class C",3:"Class CtoB"};
+var MOTION_STATUS_MAP   = {0:"unknown",1:"start",2:"moving",3:"stop"};
+var GEOFENCE_STATUS_MAP = {0:"inside",1:"outside",2:"unset",3:"unknown"};
+var DEVICE_POSITION_MAP = {0:"normal",1:"tilt"};
+var TAMPER_STATUS_MAP   = {0:"install",1:"uninstall"};
+var TEMP_ALARM_MAP      = {0:"normal",1:"abnormal"};
+var TIMEZONE_MAP = {"-120":"UTC-12","-110":"UTC-11","-100":"UTC-10","-95":"UTC-9:30","-90":"UTC-9","-80":"UTC-8","-70":"UTC-7","-60":"UTC-6","-50":"UTC-5","-40":"UTC-4","-35":"UTC-3:30","-30":"UTC-3","-20":"UTC-2","-10":"UTC-1",0:"UTC",10:"UTC+1",20:"UTC+2",30:"UTC+3",35:"UTC+3:30",40:"UTC+4",45:"UTC+4:30",50:"UTC+5",55:"UTC+5:30",57:"UTC+5:45",60:"UTC+6",65:"UTC+6:30",70:"UTC+7",80:"UTC+8",90:"UTC+9",95:"UTC+9:30",100:"UTC+10",105:"UTC+10:30",110:"UTC+11",120:"UTC+12",127:"UTC+12:45",130:"UTC+13",140:"UTC+14"};
+var TIME_SYNC_ENABLE_MAP = {0:"disable",2:"enable"};
+
+function getVBK(map,key){if(RAW_VALUE)return key;var v=map[key];return v!==undefined?v:"unknown";}
+function getKBV(map,value){if(RAW_VALUE)return value;for(var k in map){if(map[k]===value)return parseInt(k);}throw new Error("'"+value+"' ไม่พบใน map");}
+function mustBeOneOf(f,v,map){var a=[];for(var k in map)a.push(RAW_VALUE?parseInt(k):map[k]);if(a.indexOf(v)===-1)throw new Error(f+" ต้องเป็น: "+a.join(", "));}
+function rU8(b){return b&0xff;}
+function rI8(b){var r=rU8(b);return r>0x7f?r-0x100:r;}
+function rU16(b){return((b[1]<<8)+b[0])&0xffff;}
+function rI16(b){var r=rU16(b);return r>0x7fff?r-0x10000:r;}
+function rU32(b){return((b[3]<<24)+(b[2]<<16)+(b[1]<<8)+b[0])>>>0;}
+function rI32(b){var r=rU32(b);return r>0x7fffffff?r-0x100000000:r;}
+function rPV(b){return"v"+((b&0xf0)>>4)+"."+(b&0x0f);}
+function rHV(b){return"v"+(b[0]&0xff).toString(16)+"."+((b[1]&0xff)>>4);}
+function rFV(b){return"v"+(b[0]&0xff).toString(16)+"."+(b[1]&0xff).toString(16);}
+function rTV(b){return"v"+(b[0]&0xff)+"."+(b[1]&0xff);}
+function rSN(b){var t=[];for(var i=0;i<b.length;i++)t.push(("0"+(b[i]&0xff).toString(16)).slice(-2));return t.join("");}
+function rMAC(b){var t=[];for(var i=0;i<b.length;i++)t.push(("0"+(b[i]&0xff).toString(16)).slice(-2));return t.join(":");}
+
+function handleDLR(ct,bytes,offset){
+  var d={};
+  switch(ct){
+    case 0x10:d.reboot=getVBK(YES_NO_MAP,1);offset+=1;break;
+    case 0x13:d.motion_report_config={enable:getVBK(ENABLE_MAP,rU8(bytes[offset])),interval:rU16(bytes.slice(offset+1,offset+3))};offset+=3;break;
+    case 0x17:d.time_zone=getVBK(TIMEZONE_MAP,rI16(bytes.slice(offset,offset+2)));offset+=2;break;
+    case 0x28:d.report_status=getVBK(YES_NO_MAP,1);offset+=1;break;
+    case 0x2d:d.wifi_positioning_config={mode:getVBK(WIFI_SCAN_MODE_MAP,rU8(bytes[offset])),num_of_bssid:rU8(bytes[offset+1]),timeout:rU8(bytes[offset+2])};offset+=3;break;
+    case 0x3b:d.time_sync_enable=getVBK(ENABLE_MAP,rU8(bytes[offset]));offset+=1;break;
+    case 0x3c:d.gnss_positioning_timeout=rU8(bytes[offset]);offset+=1;break;
+    case 0x4a:d.sync_time=getVBK(YES_NO_MAP,1);offset+=1;break;
+    case 0x58:var dv=rU8(bytes[offset]),dc={delta_g:rU8(bytes[offset+1]),duration:rU16(bytes.slice(offset+2,offset+4))};if(dv===0)d.motion_detection_config=dc;else d.static_detection_config=dc;offset+=4;break;
+    case 0x66:d.report_strategy=getVBK(REPORT_STRATEGY_MAP,rU8(bytes[offset]));offset+=1;break;
+    case 0x71:d.positioning_strategy=getVBK(POSITIONING_MAP,rU8(bytes[offset]));offset+=1;break;
+    case 0x7e:d.geofence_alarm_config={enable:getVBK(ENABLE_MAP,rU8(bytes[offset])),interval:rU16(bytes.slice(offset+1,offset+3)),counts:rU8(bytes[offset+3])};offset+=4;break;
+    case 0x87:d.tamper_detection_enable=getVBK(ENABLE_MAP,rU8(bytes[offset]));offset+=1;break;
+    case 0x88:d.geofence_center_config=d.geofence_center_config||{};d.geofence_center_config.latitude=rI32(bytes.slice(offset,offset+4))/1000000;d.geofence_center_config.longitude=rI32(bytes.slice(offset+4,offset+8))/1000000;offset+=8;break;
+    case 0x89:d.geofence_center_config=d.geofence_center_config||{};d.geofence_center_config.radius=rU32(bytes.slice(offset,offset+4));offset+=4;break;
+    case 0x8a:var trc={index:rU8(bytes[offset])+1,time:rU16(bytes.slice(offset+1,offset+3))};d.timed_report_config=d.timed_report_config||[];d.timed_report_config.push(trc);offset+=3;break;
+    case 0x8e:var rt=rU8(bytes[offset]),rv=rU16(bytes.slice(offset+1,offset+3));if(rt===0)d.report_interval=rv;else d.motion_report_interval=rv;offset+=3;break;
+    case 0x8f:d.bluetooth_enable=getVBK(ENABLE_MAP,rU8(bytes[offset]));offset+=1;break;
+    default:throw new Error("unknown downlink response: 0x"+ct.toString(16));
+  }
+  return{data:d,offset:offset};
+}
+
+function milesightDeviceDecode(bytes){
+  var decoded={};
+  for(var i=0;i<bytes.length;){
+    var cid=bytes[i++],ct=bytes[i++];
+    if(cid===0xff&&ct===0x01){decoded.ipso_version=rPV(bytes[i]);i+=1;}
+    else if(cid===0xff&&ct===0x09){decoded.hardware_version=rHV(bytes.slice(i,i+2));i+=2;}
+    else if(cid===0xff&&ct===0x0a){decoded.firmware_version=rFV(bytes.slice(i,i+2));i+=2;}
+    else if(cid===0xff&&ct===0xff){decoded.tsl_version=rTV(bytes.slice(i,i+2));i+=2;}
+    else if(cid===0xff&&ct===0x16){decoded.sn=rSN(bytes.slice(i,i+8));i+=8;}
+    else if(cid===0xff&&ct===0x0f){decoded.lorawan_class=getVBK(LORAWAN_CLASS_MAP,bytes[i]);i+=1;}
+    else if(cid===0xff&&ct===0xfe){decoded.reset_event=getVBK({0:"normal",1:"reset"},1);i+=1;}
+    else if(cid===0xff&&ct===0x0b){decoded.device_status=getVBK({0:"off",1:"on"},1);i+=1;}
+    else if(cid===0x01&&ct===0x75){decoded.battery=rU8(bytes[i]);i+=1;}
+    else if(cid===0x03&&ct===0x67){decoded.temperature=rI16(bytes.slice(i,i+2))/10;i+=2;}
+    else if((cid===0x04||cid===0x84)&&ct===0x88){decoded.latitude=rI32(bytes.slice(i,i+4))/1000000;decoded.longitude=rI32(bytes.slice(i+4,i+8))/1000000;var s=bytes[i+8];decoded.motion_status=getVBK(MOTION_STATUS_MAP,s&0x0f);decoded.geofence_status=getVBK(GEOFENCE_STATUS_MAP,s>>4);i+=9;}
+    else if(cid===0x05&&ct===0x00){decoded.position=getVBK(DEVICE_POSITION_MAP,bytes[i]);i+=1;}
+    else if(cid===0x06&&ct===0xd9){var w={};w.group=rU8(bytes[i]);w.mac=rMAC(bytes.slice(i+1,i+7));w.rssi=rI8(bytes[i+7]);w.motion_status=getVBK(MOTION_STATUS_MAP,bytes[i+8]&0x0f);i+=9;decoded.wifi_scan_result="finish";if(w.mac==="ff:ff:ff:ff:ff:ff"){decoded.wifi_scan_result="timeout";continue;}decoded.motion_status=w.motion_status;decoded.wifi=decoded.wifi||[];decoded.wifi.push(w);}
+    else if(cid===0x07&&ct===0x00){decoded.tamper_status=getVBK(TAMPER_STATUS_MAP,bytes[i]);i+=1;}
+    else if(cid===0x83&&ct===0x67){decoded.temperature=rI16(bytes.slice(i,i+2))/10;decoded.temperature_alarm=getVBK(TEMP_ALARM_MAP,bytes[i+2]);i+=3;}
+    else if(cid===0x20&&ct===0xce){var loc={};loc.timestamp=rU32(bytes.slice(i,i+4));loc.longitude=rI32(bytes.slice(i+4,i+8))/1000000;loc.latitude=rI32(bytes.slice(i+8,i+12))/1000000;i+=12;decoded.history=decoded.history||[];decoded.history.push(loc);}
+    else if(cid===0xfe||cid===0xff){var r=handleDLR(ct,bytes,i);decoded=Object.assign(decoded,r.data);i=r.offset;}
+    else break;
+  }
+  return decoded;
+}
+
+function Buf(size){this.buffer=new Array(size);this.offset=0;for(var i=0;i<size;i++)this.buffer[i]=0;}
+Buf.prototype._w=function(v,len,le){for(var i=0;i<len;i++){var s=le?i<<3:(len-1-i)<<3;this.buffer[this.offset+i]=(v>>s)&0xff;}};
+Buf.prototype.writeUInt8=function(v){this._w(v,1,true);this.offset+=1;};
+Buf.prototype.writeUInt16LE=function(v){this._w(v,2,true);this.offset+=2;};
+Buf.prototype.writeInt16LE=function(v){this._w(v<0?v+0x10000:v,2,true);this.offset+=2;};
+Buf.prototype.writeUInt32LE=function(v){this._w(v,4,true);this.offset+=4;};
+Buf.prototype.writeInt32LE=function(v){this._w(v<0?v+0x100000000:v,4,true);this.offset+=4;};
+Buf.prototype.toBytes=function(){return this.buffer;};
+
+function milesightDeviceEncode(payload){
+  var enc=[];
+  function nb(s){return new Buf(s);}
+  if("reboot"in payload){mustBeOneOf("reboot",payload.reboot,YES_NO_MAP);if(getKBV(YES_NO_MAP,payload.reboot)!==0)enc=enc.concat([0xff,0x10,0xff]);}
+  if("report_status"in payload){mustBeOneOf("report_status",payload.report_status,YES_NO_MAP);if(getKBV(YES_NO_MAP,payload.report_status)!==0)enc=enc.concat([0xff,0x28,0xff]);}
+  if("time_zone"in payload){mustBeOneOf("time_zone",payload.time_zone,TIMEZONE_MAP);var b=nb(4);b.writeUInt8(0xff);b.writeUInt8(0x17);b.writeInt16LE(getKBV(TIMEZONE_MAP,payload.time_zone));enc=enc.concat(b.toBytes());}
+  if("sync_time"in payload){mustBeOneOf("sync_time",payload.sync_time,YES_NO_MAP);if(getKBV(YES_NO_MAP,payload.sync_time)!==0)enc=enc.concat([0xff,0x4a,0x00]);}
+  if("report_interval"in payload){if(payload.report_interval<1||payload.report_interval>1440)throw new Error("report_interval ต้องอยู่ระหว่าง 1-1440");var b=nb(5);b.writeUInt8(0xff);b.writeUInt8(0x8e);b.writeUInt8(0x00);b.writeUInt16LE(payload.report_interval);enc=enc.concat(b.toBytes());}
+  if("motion_report_interval"in payload){if(payload.motion_report_interval<1||payload.motion_report_interval>1440)throw new Error("motion_report_interval ต้องอยู่ระหว่าง 1-1440");var b=nb(5);b.writeUInt8(0xff);b.writeUInt8(0x8e);b.writeUInt8(0x01);b.writeUInt16LE(payload.motion_report_interval);enc=enc.concat(b.toBytes());}
+  if("report_strategy"in payload){mustBeOneOf("report_strategy",payload.report_strategy,REPORT_STRATEGY_MAP);var b=nb(3);b.writeUInt8(0xff);b.writeUInt8(0x66);b.writeUInt8(getKBV(REPORT_STRATEGY_MAP,payload.report_strategy));enc=enc.concat(b.toBytes());}
+  if("positioning_strategy"in payload){mustBeOneOf("positioning_strategy",payload.positioning_strategy,POSITIONING_MAP);var b=nb(3);b.writeUInt8(0xff);b.writeUInt8(0x71);b.writeUInt8(getKBV(POSITIONING_MAP,payload.positioning_strategy));enc=enc.concat(b.toBytes());}
+  if("gnss_positioning_timeout"in payload){if(payload.gnss_positioning_timeout<1||payload.gnss_positioning_timeout>5)throw new Error("gnss_positioning_timeout ต้องอยู่ระหว่าง 1-5");var b=nb(3);b.writeUInt8(0xff);b.writeUInt8(0x3c);b.writeUInt8(payload.gnss_positioning_timeout);enc=enc.concat(b.toBytes());}
+  if("wifi_positioning_config"in payload){var c=payload.wifi_positioning_config;mustBeOneOf("wifi_positioning_config.mode",c.mode,WIFI_SCAN_MODE_MAP);var b=nb(5);b.writeUInt8(0xff);b.writeUInt8(0x2d);b.writeUInt8(getKBV(WIFI_SCAN_MODE_MAP,c.mode));b.writeUInt8(c.num_of_bssid);b.writeUInt8(c.timeout);enc=enc.concat(b.toBytes());}
+  if("motion_detection_config"in payload){var c=payload.motion_detection_config;if(c.duration<1||c.duration>60)throw new Error("motion_detection_config.duration ต้องอยู่ระหว่าง 1-60");var b=nb(6);b.writeUInt8(0xff);b.writeUInt8(0x58);b.writeUInt8(0x00);b.writeUInt8(c.delta_g);b.writeUInt16LE(c.duration);enc=enc.concat(b.toBytes());}
+  if("static_detection_config"in payload){var c=payload.static_detection_config;if(c.duration<1||c.duration>1800)throw new Error("static_detection_config.duration ต้องอยู่ระหว่าง 1-1800");var b=nb(6);b.writeUInt8(0xff);b.writeUInt8(0x58);b.writeUInt8(0x01);b.writeUInt8(c.delta_g);b.writeUInt16LE(c.duration);enc=enc.concat(b.toBytes());}
+  if("motion_report_config"in payload){var c=payload.motion_report_config;mustBeOneOf("motion_report_config.enable",c.enable,ENABLE_MAP);if(c.interval<1||c.interval>1440)throw new Error("motion_report_config.interval ต้องอยู่ระหว่าง 1-1440");var b=nb(5);b.writeUInt8(0xff);b.writeUInt8(0x13);b.writeUInt8(getKBV(ENABLE_MAP,c.enable));b.writeUInt16LE(c.interval);enc=enc.concat(b.toBytes());}
+  if("geofence_center_config"in payload){var c=payload.geofence_center_config;if("latitude"in c&&"longitude"in c){var b=nb(10);b.writeUInt8(0xff);b.writeUInt8(0x88);b.writeInt32LE(Math.round(c.latitude*1000000));b.writeInt32LE(Math.round(c.longitude*1000000));enc=enc.concat(b.toBytes());}if("radius"in c){var b=nb(6);b.writeUInt8(0xff);b.writeUInt8(0x89);b.writeUInt32LE(c.radius);enc=enc.concat(b.toBytes());}}
+  if("tamper_detection_enable"in payload){mustBeOneOf("tamper_detection_enable",payload.tamper_detection_enable,ENABLE_MAP);var b=nb(3);b.writeUInt8(0xff);b.writeUInt8(0x87);b.writeUInt8(getKBV(ENABLE_MAP,payload.tamper_detection_enable));enc=enc.concat(b.toBytes());}
+  if("geofence_alarm_config"in payload){var c=payload.geofence_alarm_config;mustBeOneOf("geofence_alarm_config.enable",c.enable,ENABLE_MAP);if(c.interval<1||c.interval>1440)throw new Error("interval ต้องอยู่ระหว่าง 1-1440");if(c.counts<1||c.counts>3)throw new Error("counts ต้องอยู่ระหว่าง 1-3");var b=nb(6);b.writeUInt8(0xff);b.writeUInt8(0x7e);b.writeUInt8(getKBV(ENABLE_MAP,c.enable));b.writeUInt16LE(c.interval);b.writeUInt8(c.counts);enc=enc.concat(b.toBytes());}
+  if("timed_report_config"in payload){for(var i=0;i<payload.timed_report_config.length;i++){var c=payload.timed_report_config[i];if(c.index<1||c.index>5)throw new Error("index ต้องอยู่ระหว่าง 1-5");var b=nb(5);b.writeUInt8(0xff);b.writeUInt8(0x8a);b.writeUInt8(c.index-1);b.writeUInt16LE(c.time);enc=enc.concat(b.toBytes());}}
+  if("bluetooth_enable"in payload){mustBeOneOf("bluetooth_enable",payload.bluetooth_enable,ENABLE_MAP);var b=nb(3);b.writeUInt8(0xff);b.writeUInt8(0x8f);b.writeUInt8(getKBV(ENABLE_MAP,payload.bluetooth_enable));enc=enc.concat(b.toBytes());}
+  if("time_sync_enable"in payload){mustBeOneOf("time_sync_enable",payload.time_sync_enable,TIME_SYNC_ENABLE_MAP);var b=nb(3);b.writeUInt8(0xff);b.writeUInt8(0x3b);b.writeUInt8(getKBV(TIME_SYNC_ENABLE_MAP,payload.time_sync_enable));enc=enc.concat(b.toBytes());}
+  return enc;
+}
+
+// ══════════════════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════════════════
+function hexToBytes(hex){
+  hex = hex.replace(/\s|0x/gi,"");
+  if(hex.length%2!==0) throw new Error("HEX ต้องมีจำนวน character คู่");
+  if(!/^[0-9a-f]*$/i.test(hex)) throw new Error("พบ character ที่ไม่ใช่ HEX");
+  return hex.match(/.{1,2}/g).map(h=>parseInt(h,16));
+}
+function bytesToHex(b){
+  return b.map(x=>x.toString(16).padStart(2,"0").toUpperCase()).join(" ");
+}
+function syntaxHighlight(json){
+  return json
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function(m){
+      var cls="num";
+      if(/^"/.test(m)){cls=/:$/.test(m)?"key":"str";}
+      else if(/true|false/.test(m)){cls="bool";}
+      else if(/null/.test(m)){cls="null";}
+      return'<span class="'+cls+'">'+m+'</span>';
+    });
+}
+
+// ══════════════════════════════════════════════════════════════
+// UI LOGIC
+// ══════════════════════════════════════════════════════════════
+function switchTab(tab){
+  document.getElementById("tab-decode").style.display = tab==="decode"?"block":"none";
+  document.getElementById("tab-encode").style.display = tab==="encode"?"block":"none";
+  document.querySelectorAll(".tab").forEach((el,i)=>{
+    el.classList.toggle("active", (tab==="decode"&&i===0)||(tab==="encode"&&i===1));
+  });
+}
+
+function setDecodeHex(hex){
+  document.getElementById("decode-input").value = hex;
+  runDecode();
+}
+function setEncodeJson(obj){
+  document.getElementById("encode-input").value = JSON.stringify(obj, null, 2);
+  runEncode();
+}
+
+function showResult(elId, ok, content){
+  var el = document.getElementById(elId);
+  el.className = "result-box " + (ok?"result-ok":"result-err");
+  el.innerHTML = content;
+}
+
+function runDecode(){
+  var raw = document.getElementById("decode-input").value.trim();
+  if(!raw){ document.getElementById("decode-result").innerHTML=""; return; }
+  try{
+    var bytes = hexToBytes(raw);
+    var result = milesightDeviceDecode(bytes);
+    var pretty = JSON.stringify(result, null, 2);
+    var byteLen = bytes.length;
+    showResult("decode-result", true,
+      '<div style="font-size:11px;color:#64748b;margin-bottom:8px">✓ Decoded '+byteLen+' bytes</div>'+
+      syntaxHighlight(pretty)
+    );
+  } catch(e){
+    showResult("decode-result", false, "❌ Error: "+e.message);
+  }
+}
+
+function runEncode(){
+  var raw = document.getElementById("encode-input").value.trim();
+  if(!raw){ document.getElementById("encode-result").innerHTML=""; return; }
+  try{
+    var obj = JSON.parse(raw);
+    var bytes = milesightDeviceEncode(obj);
+    if(bytes.length===0) throw new Error("ไม่พบ field ที่รองรับใน payload");
+    var hex = bytesToHex(bytes);
+    var hexNoSpace = bytes.map(x=>x.toString(16).padStart(2,"0").toUpperCase()).join("");
+    showResult("encode-result", true,
+      '<div style="font-size:11px;color:#64748b;margin-bottom:8px">✓ Encoded '+bytes.length+' bytes</div>'+
+      '<div style="font-size:15px;letter-spacing:2px;font-weight:700;margin-bottom:8px">'+hex+'</div>'+
+      '<div style="font-size:11px;color:#64748b">No spaces: <span style="color:#0f172a">'+hexNoSpace+'</span></div>'
+    );
+  } catch(e){
+    showResult("encode-result", false, "❌ Error: "+e.message);
+  }
+}
+
+function clearDecode(){
+  document.getElementById("decode-input").value="";
+  document.getElementById("decode-result").innerHTML="";
+}
+function clearEncode(){
+  document.getElementById("encode-input").value="";
+  document.getElementById("encode-result").innerHTML="";
+}
+function autoDecodeHex(){
+  var v = document.getElementById("decode-input").value.replace(/\s/g,"");
+  if(v.length>=4 && v.length%2===0) runDecode();
+}
+
+// init
+setDecodeHex("017564036783011B01");
+</script>
+</body>
+</html>
